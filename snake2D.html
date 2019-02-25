@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake</title>
+</head>
+<body>
+<style>
+  .cell {
+    width: 20px;
+    height: 20px;
+    border: 1px solid;
+    position: relative;
+    text-align: center;
+  }
+
+  table {
+    border: 1px solid;
+  }
+
+  .snake::before {
+    content: 'X';
+  }
+
+  .apple::before {
+    content: '0';
+  }
+
+</style>
+<table cellpadding="0" cellspacing="0">
+  <tbody></tbody>
+</table>
+<script>
+  // create table
+  var cells = 5;
+
+  var field = (new Array(+cells))
+    .fill(0)
+    .reduce(
+      (acc, _, i) => {
+        acc.push(
+          ...(new Array(+cells))
+            .fill(0)
+            .map(
+              (__, j) => [i, j]
+            )
+        );
+        return acc
+      }, []);
+
+  document
+    .getElementsByTagName('tbody')[0]
+    .innerHTML =
+    (new Array(+cells)).fill(0)
+      .map(
+        (_, i, array) =>
+          `<tr>${
+            array.map(
+              (_, j) => `<td id="${i + ',' + j}" class="cell"></td>`
+            ).join('')
+            }</tr>`
+      )
+      .join('');
+
+  // add game vars
+  var timeOut;
+  var snake = [];
+  var apple = [];
+  var directions = {
+    up: [-1, 0],
+    down: [1, 0],
+    left: [0, -1],
+    right: [0, 1]
+  };
+  var currentDirection = directions['right'];
+  const genRandCellFromArr = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  snake.push(genRandCellFromArr(field));
+
+  // game
+  const game = () => {
+    var head = snake[snake.length - 1];
+    var nextLine = head[0] + currentDirection[0];
+    var nextCol = head[1] + currentDirection[1];
+    nextLine = nextLine < 0 ? cells - 1 : nextLine;
+    nextLine = nextLine > cells - 1 ? 0 : nextLine;
+    nextCol = nextCol < 0 ? cells - 1 : nextCol;
+    nextCol = nextCol > cells - 1 ? 0 : nextCol;
+    var nextCell = [nextLine, nextCol];
+
+    // self collision
+    if (snake.slice(1).join('_').includes(nextCell.toString())) {
+      alert('Game over');
+      snake = [];
+      apple = [];
+      snake.push(genRandCellFromArr(field));
+    }
+
+    //apple eating
+    if (apple.join('_').includes(nextCell.toString())) {
+      snake.push(nextCell);
+      apple.length = 0;
+    } else {
+      // move snake
+      snake = snake.map(
+        (item, index, array) => (
+          index === array.length - 1
+            ? [nextLine, nextCol]
+            : array[index + 1]
+        )
+      )
+    }
+
+    // new apple
+    if (apple.length === 0) {
+      var freeField = field.reduce((acc, item) => {
+        if (
+          !snake.join('_').includes(item.toString())
+          &&
+          !apple.join('_').includes(item.toString())
+        ) {
+          acc.push(item);
+        }
+        return acc;
+      }, []);
+      apple.push(genRandCellFromArr(freeField))
+    }
+
+    // refresh html
+    Array.from(document.getElementsByClassName('cell')).forEach(item => {
+      item.classList.remove('snake', 'apple');
+      if (apple.join('_').includes(item.id)) {
+        item.classList.add('apple');
+      }
+      if (snake.join('_').includes(item.id)) {
+        item.classList.add('snake');
+      }
+    });
+  };
+
+  document.addEventListener('keyup', (e) => {
+    var key = e.key.toLowerCase();
+    var userDirection =
+      key === 'arrowup' || key === 'w'
+        ? directions['up']
+        : key === 'arrowdown' || key === 's'
+        ? directions['down']
+        : key === 'arrowleft' || key === 'a'
+          ? directions['left']
+          : key === 'arrowright' || key === 'd'
+            ? directions['right']
+            : currentDirection;
+    currentDirection = userDirection.map(i => Math.abs(i)) + '' === currentDirection.map(i => Math.abs(i)) + ''
+      ? currentDirection : userDirection
+  });
+
+
+  // loop
+  var looper = () => {
+    if (field.length !== snake.length) {
+      game();
+      timeOut = setTimeout(() => {
+        requestAnimationFrame(looper)
+      }, 1000);
+    } else {
+      clearTimeout(timeOut);
+      alert('Winner');
+    }
+  };
+  requestAnimationFrame(looper)
+
+</script>
+</body>
+</html>

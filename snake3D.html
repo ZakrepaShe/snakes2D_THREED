@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake</title>
+</head>
+<body>
+<style>
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%
+  }
+</style>
+
+<script src="http://threejs.org/build/three.js"></script>
+<script>
+  // create table
+  var cells = 5;
+
+  var field = (new Array(+cells))
+    .fill(0)
+    .reduce(
+      (acc, _, i) => {
+        acc.push(
+          ...(new Array(+cells))
+            .fill(0)
+            .map(
+              (__, j) => [i, j]
+            )
+        );
+        return acc
+      }, []);
+
+  // add game vars
+  var timeOut;
+  var snake = [];
+  var apple = [];
+  var directions = {
+    up: [-1, 0],
+    down: [1, 0],
+    left: [0, -1],
+    right: [0, 1]
+  };
+  var currentDirection = directions['right'];
+  const genRandCellFromArr = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  snake.push(genRandCellFromArr(field));
+
+  /**--------------------------------------------**/
+  /*** THREE.JS init part */
+  var scene = new THREE.Scene();
+  var light = new THREE.AmbientLight(0x404040); // soft white light
+  scene.add( light );
+  var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+  scene.add(directionalLight);
+
+  // Create a basic perspective camera
+  var camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+  camera.position.set(2.5,7.5,7.5);
+  camera.lookAt( 2.5,2.5,5 );
+
+  // Create a renderer with Antialiasing
+  var renderer = new THREE.WebGLRenderer({antialias:true});
+
+  // Configure renderer clear color
+  renderer.setClearColor("#000000");
+
+  // Configure renderer size
+  renderer.setSize( window.innerWidth, window.innerHeight );
+
+  // Append Renderer to DOM
+  document.body.appendChild( renderer.domElement );
+
+  var meshFloor = new THREE.Mesh(
+    new THREE.PlaneGeometry(5,5,5,5),
+    new THREE.MeshBasicMaterial({color: 0xffffff, wireframe: true})
+  );
+  meshFloor.rotateX(Math.PI / 2);
+  meshFloor.translateZ(0.5);
+  meshFloor.translateX(2.5);
+  meshFloor.translateY(2.5);
+  scene.add( meshFloor );
+  var sceneCubes = [];
+  /**--------------------------------------------**/
+
+  // game
+  const game = () => {
+    var head = snake[snake.length - 1];
+    var nextLine = head[0] + currentDirection[0];
+    var nextCol = head[1] + currentDirection[1];
+    nextLine = nextLine < 0 ? cells - 1 : nextLine;
+    nextLine = nextLine > cells - 1 ? 0 : nextLine;
+    nextCol = nextCol < 0 ? cells - 1 : nextCol;
+    nextCol = nextCol > cells - 1 ? 0 : nextCol;
+    var nextCell = [nextLine, nextCol];
+
+    // self collision
+    if (snake.slice(1).join('_').includes(nextCell.toString())) {
+      alert('Game over');
+      snake = [];
+      apple = [];
+      snake.push(genRandCellFromArr(field));
+    }
+
+    //apple eating
+    if (apple.join('_').includes(nextCell.toString())) {
+      snake.push(nextCell);
+      apple.length = 0;
+    } else {
+      // move snake
+      snake = snake.map(
+        (item, index, array) => (
+          index === array.length - 1
+            ? [nextLine, nextCol]
+            : array[index + 1]
+        )
+      )
+    }
+
+    // new apple
+    if (apple.length === 0) {
+      var freeField = field.reduce((acc, item) => {
+        if (
+          !snake.join('_').includes(item.toString())
+          &&
+          !apple.join('_').includes(item.toString())
+        ) {
+          acc.push(item);
+        }
+        return acc;
+      }, []);
+      apple.push(genRandCellFromArr(freeField))
+    }
+
+    // clear scene
+    sceneCubes.map(item=>scene.remove(item));
+
+    // refresh html
+    field.forEach(item => {
+      if (apple.join('_').includes(item.join(','))) {
+        var sphere = new THREE.Mesh(
+          new THREE.SphereGeometry( 0.5, 32, 32 ),
+          new THREE.MeshLambertMaterial( { color: "blue" } )
+        );
+        sphere.translateX(0.5 + item[1]);
+        sphere.translateZ(0.5 + item[0]);
+        sceneCubes.push(sphere);
+        scene.add( sphere );
+      }
+      if (snake.join('_').includes(item.join(','))) {
+        var snakeBodyPiece = new THREE.Mesh(
+          new THREE.BoxGeometry( 1, 1, 1 ),
+          new THREE.MeshLambertMaterial( { color: "blue" } )
+        );
+        snakeBodyPiece.translateX(0.5 + item[1]);
+        snakeBodyPiece.translateZ(0.5 + item[0]);
+        sceneCubes.push(snakeBodyPiece);
+        scene.add( snakeBodyPiece );
+      }
+    });
+
+    // 3D frame painting
+    renderer.render(scene, camera);
+  };
+
+  document.addEventListener('keyup', (e) => {
+    var key = e.key.toLowerCase();
+    var userDirection =
+      key === 'arrowup' || key === 'w'
+        ? directions['up']
+        : key === 'arrowdown' || key === 's'
+        ? directions['down']
+        : key === 'arrowleft' || key === 'a'
+          ? directions['left']
+          : key === 'arrowright' || key === 'd'
+            ? directions['right']
+            : currentDirection;
+    currentDirection = userDirection.map(i=>Math.abs(i))+'' === currentDirection.map(i=>Math.abs(i))+''
+    ? currentDirection : userDirection
+  });
+
+  // loop
+  var looper = () => {
+    if (field.length !== snake.length) {
+      game();
+      timeOut = setTimeout(() => {
+        requestAnimationFrame(looper)
+      }, 1000);
+    } else {
+      clearTimeout(timeOut);
+      alert('Winner');
+    }
+  };
+  requestAnimationFrame(looper)
+
+</script>
+</body>
+</html>
