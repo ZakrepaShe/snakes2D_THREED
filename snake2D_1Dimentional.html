@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Snake</title>
+</head>
+<body>
+<style>
+  .cell {
+    width: 20px;
+    height: 20px;
+    border: 1px solid;
+    position: relative;
+    text-align: center;
+  }
+
+  table {
+    border: 1px solid;
+  }
+
+  .snake::before {
+    content: 'X';
+  }
+
+  .apple::before {
+    content: '0';
+  }
+
+</style>
+<table cellpadding="0" cellspacing="0">
+  <tbody></tbody>
+</table>
+<script>
+
+  // helpers
+  //WARNING OWERRIDES + "THIS" USAGE
+  Array.prototype.hasItem      = function (item) { return this.includes(item) };
+  Array.prototype.getLast      = function ()     { return this[this.length - 1] };
+  Array.prototype.getAny       = function ()     { return this[Math.floor(Math.random() * this.length)] };
+  Array.prototype.excludeItems = function (excludeArray) {
+    return this.filter(currentItem => !excludeArray.includes(currentItem));
+  };
+
+  // Shitty magic function :)
+  const correctTeleportation = (headCoordinate, distance, cells) => {
+    const maxCoordinate = cells - 1;
+    // going offborder UP
+    if ((headCoordinate + distance < 0) && (distance === directions['up'])) {
+      return cells*cells + headCoordinate + distance
+    }
+    // going offborder DOWN
+    if ((headCoordinate + distance > (cells*cells-1)) && (distance === directions['down'])) {
+      return headCoordinate + distance - cells*cells
+    }
+    // going offborder RIGHT
+    if (((headCoordinate + 1) % cells === 0) && (distance === directions['right'])) {
+      return headCoordinate - maxCoordinate
+    }
+    // going offborder LEFT
+    if ((headCoordinate % cells === 0) && (distance === directions['left'])) {
+      return headCoordinate + maxCoordinate
+    }
+    return (headCoordinate + distance)
+  };
+
+  // create table
+  const cells = 5;
+
+  const allCoordsArray = (new Array(cells*cells))
+    .fill(0)
+    .map((_, index) => index);
+
+  document
+    .getElementsByTagName('tbody')[0]
+    .innerHTML =
+    (new Array(+cells)).fill(0)
+      .map(
+        (_, i, array) =>
+          `<tr>${
+            array.map(
+              (_, j) => `<td id="${i*cells + j}" class="cell"></td>`
+            ).join('')
+            }</tr>`
+      )
+      .join('');
+
+  // add game vars
+  let timeOut,
+    snake = [],
+    apple = [];
+  const directions = {
+    up: -cells,
+    down: cells,
+    left: -1,
+    right: 1,
+  };
+
+  // initial data
+  let currentDirection = directions['right'];
+  snake = [allCoordsArray.getAny()];
+
+  // game
+  const game = () => {
+    const head = snake.getLast();
+    const nextCell = correctTeleportation(head, currentDirection, cells);
+
+    // self collision
+    if (snake.slice(1).includes(nextCell)) {
+      alert('Game over');
+      snake = [allCoordsArray.getAny()];
+      apple = [allCoordsArray.excludeItems(snake).getAny()];
+    }
+
+    //apple eating
+    if (apple.includes(nextCell)) {
+      // new apple
+      apple = [allCoordsArray.excludeItems([...snake, ...nextCell]).getAny()];
+    } else {
+      // chop snake tail
+      snake.shift();
+    }
+
+    // move snake
+    snake.push(nextCell);
+
+    // refresh html
+    Array.from(document.getElementsByClassName('cell')).forEach(
+      ({classList: cellClassList, id: currentCell}) => {
+        cellClassList.remove('snake', 'apple');
+        if (apple.includes(+currentCell)) { cellClassList.add('apple');}
+        if (snake.includes(+currentCell)) { cellClassList.add('snake');}
+      });
+  };
+
+  document.addEventListener('keydown', e => {
+    const key = e.key.toLowerCase();
+    const userDirection =
+      key === 'arrowup' || key === 'w'
+        ? directions['up']
+        : key === 'arrowdown' || key === 's'
+        ? directions['down']
+        : key === 'arrowleft' || key === 'a'
+          ? directions['left']
+          : key === 'arrowright' || key === 'd'
+            ? directions['right']
+            : currentDirection;
+
+    // opposite directions restrictions
+    currentDirection = Math.abs(userDirection) === Math.abs(currentDirection)
+      ? currentDirection : userDirection
+  });
+
+
+  // loop
+  const looper = () => {
+    if (allCoordsArray.length !== snake.length) {
+      game();
+      timeOut = setTimeout(() => {
+        requestAnimationFrame(looper)
+      }, 1000);
+    } else {
+      clearTimeout(timeOut);
+      alert('Winner');
+    }
+  };
+  requestAnimationFrame(looper)
+
+</script>
+</body>
+</html>

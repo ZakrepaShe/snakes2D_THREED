@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+  <meta charset="UTF-8">
+  <title>Snake</title>
+  </head>
+  <body>
+  <style>
+.cell {
+  width: 20px;
+  height: 20px;
+  border: 1px solid;
+  position: relative;
+  text-align: center;
+}
+
+table {
+  border: 1px solid;
+}
+
+.snake::before {
+  content: 'X';
+}
+
+.apple::before {
+  content: '0';
+}
+
+</style>
+<table cellpadding="0" cellspacing="0">
+<tbody></tbody>
+</table>
+<script>
+
+// helpers
+//WARNING OWERRIDES + "THIS" USAGE
+Array.prototype.toAbsString  = function ()     { return this.map(Math.abs).toString(); };
+Array.prototype.hasItem      = function (item) { return this.join('_%%_').includes(item.toString()) };
+Array.prototype.getLast      = function ()     { return this[this.length - 1] };
+Array.prototype.getAny       = function ()     { return this[Math.floor(Math.random() * this.length)] };
+Array.prototype.excludeItems = function (excludeArray) {
+  return this.filter(currentItem => !excludeArray.hasItem(currentItem));
+};
+
+const correctTeleportation = (currentCoordinate, maxCoordinate) =>
+  currentCoordinate < 0
+    ? maxCoordinate
+    : currentCoordinate > maxCoordinate
+      ? 0
+      : currentCoordinate;
+
+// create table
+const cells = 5;
+const MAX_CORDINATA = cells - 1;
+
+const allCoordsArray = (new Array(+cells))
+  .fill(0)
+  .reduce(
+    (acc, _, i) => ([
+      ...acc,
+      ...(new Array(+cells))
+        .fill(0)
+        .map((__, j) => [i, j])
+    ]), []);
+
+document
+  .getElementsByTagName('tbody')[0]
+  .innerHTML =
+  (new Array(+cells)).fill(0)
+    .map(
+      (_, i, array) =>
+        `<tr>${
+          array.map(
+            (_, j) => `<td id="${i + ',' + j}" class="cell"></td>`
+          ).join('')
+          }</tr>`
+    )
+    .join('');
+
+// add game vars
+let timeOut,
+  snake = [],
+  apple = [];
+const directions = {
+  up: [-1, 0],
+  down: [1, 0],
+  left: [0, -1],
+  right: [0, 1]
+};
+
+// initial data
+let currentDirection = directions['right'];
+snake = [allCoordsArray.getAny()];
+
+// game
+const game = () => {
+  const head = snake.getLast();
+  // too complex T_T
+  const nextCell = head.map((axisCord, index) =>
+      correctTeleportation(axisCord + currentDirection[index], MAX_CORDINATA)
+  );
+
+  // self collision
+  if (snake.slice(1).hasItem(nextCell)) {
+    alert('Game over');
+    snake = [allCoordsArray.getAny()];
+    apple = [allCoordsArray.excludeItems(snake).getAny()];
+  }
+
+  //apple eating
+  if (apple.hasItem(nextCell)) {
+    apple = [];
+  } else {
+    // move snake
+    snake.shift();
+  }
+  snake.push(nextCell);
+
+  // new apple
+  if (apple.length === 0) {
+    apple.push(allCoordsArray.excludeItems([...snake, ...apple]).getAny())
+  }
+
+  // refresh html
+  Array.from(document.getElementsByClassName('cell')).forEach(
+    ({classList: cellClassList, id: currentCell}) => {
+      cellClassList.remove('snake', 'apple');
+      if (apple.hasItem(currentCell)) { cellClassList.add('apple');}
+      if (snake.hasItem(currentCell)) { cellClassList.add('snake');}
+    });
+};
+
+document.addEventListener('keydown', e => {
+  const key = e.key.toLowerCase();
+  const userDirection =
+    key === 'arrowup' || key === 'w'
+      ? directions['up']
+      : key === 'arrowdown' || key === 's'
+        ? directions['down']
+        : key === 'arrowleft' || key === 'a'
+          ? directions['left']
+          : key === 'arrowright' || key === 'd'
+            ? directions['right']
+            : currentDirection;
+
+  // opposite directions restrictions
+  currentDirection = userDirection.toAbsString() === currentDirection.toAbsString()
+    ? currentDirection : userDirection
+});
+
+
+// loop
+const looper = () => {
+  if (allCoordsArray.length !== snake.length) {
+    game();
+    timeOut = setTimeout(() => {
+      requestAnimationFrame(looper)
+    }, 1000);
+  } else {
+    clearTimeout(timeOut);
+    alert('Winner');
+  }
+};
+requestAnimationFrame(looper)
+
+</script>
+</body>
+</html>
